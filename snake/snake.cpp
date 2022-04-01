@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<graphics.h>
 #include<conio.h>
+#include<stdlib.h>
 /*
 	贪吃蛇
 	知识点：结构体，循环，函数，easyx，数组
@@ -14,7 +15,7 @@ enum DIR {
 	UP,
 	DOWN,
 	LEFT,
-	RIGHT,
+	RIGHT
 };
 //蛇的结构
 struct Snake
@@ -24,11 +25,22 @@ struct Snake
 	int speed;//移动速度
 	POINT coor[SNAKE_NUM];//坐标 POINT:定义好的结构体，含x、y
 }snake;
+//食物结构
+struct Food{
+	int x;
+	int y;
+	int r;	//食物大小
+	bool flag;	//食物是否被吃
+	DWORD color; // 食物颜色
+}food;
+
 
 //数据的初始化
 void GameInit(){
 	//init初始化grapg图形窗口,SHOWCONSOLE：显示控制台
-	initgraph(640, 480);
+	initgraph(640, 640);
+	//设置随机数种子
+	srand(GetTickCount());//GetTickCount()获取系统开机到现在所经过的毫秒数
 	//初始化蛇,一开始三节
 	snake.size = 3;
 	snake.speed = 10;
@@ -37,6 +49,16 @@ void GameInit(){
 		snake.coor[i].x = 40-10*i;
 		snake.coor[i].y = 10; 
 	}
+
+	//初始化食物,rand()随机产生一个整数，如果没有设置随机数种子，每次产生的都是固定整数
+	//设置种子需要头文件 stdlib.h,一般把时间作为种子，因为变化
+	
+	food.x = rand()%640;
+	food.y = rand()%480;
+	food.color = RGB(rand()%256, rand()%256, rand()%256);
+	food.r = rand()%10 + 5;
+	food.flag = true;
+	printf("%d %d,", food.x, food.y);
 }
 
 void GameDraw() {
@@ -46,34 +68,52 @@ void GameDraw() {
 	setbkcolor(RGB(28, 115, 119));
 	cleardevice();
 	//绘制蛇
-	setfillcolor(rad10); //蛇的颜色
+	setfillcolor(GREEN); //蛇的颜色
 	for (int i = 0; i < snake.size; i++) {
 		solidcircle(snake.coor[i].x, snake.coor[i].y, 5);
 	}
+	//绘制食物
+	if (food.flag) {
+		solidcircle(food.x, food.y, food.color);
+	}
 	EndBatchDraw();
+	
 }
 
 //移动蛇
 void snakeMove() {
-	//移动是x y发生改变
-	for (int i = 0; i < snake.size; i++) {
-			switch (snake.dir){
-			case UP:
-				snake.coor[i].y--;
-				break;
-			case DOWN:
-				snake.coor[i].y++;
-				break;
-			case LEFT:
-				snake.coor[i].x--;
-				break;
-			case RIGHT:
-				snake.coor[i].x++;
-				break;
-		}	
-		snake.coor[i].x++;
+	//让身体跟着头移动
+	for (int i = snake.size-1; i > 0; i--) {
+		
+		snake.coor[i] = snake.coor[i - 1];
 	}
-	
+	//移动是x y发生改变
+	switch (snake.dir) {
+		case UP:
+			snake.coor[0].y -= snake.speed;
+			if (snake.coor[0].y + 10 <= 0) {	//超出了上面的边界
+				snake.coor[0].y = 640;
+			}
+			break;
+		case DOWN:
+			snake.coor[0].y += snake.speed;
+			if (snake.coor[0].y - 10 >= 640) {	//超出了下面的边界
+				snake.coor[0].y = 0;
+			}
+			break;
+		case LEFT:
+			snake.coor[0].x -= snake.speed;
+			if (snake.coor[0].x + 10 <= 0) {	//超出了左面的边界
+				snake.coor[0].x = 640;
+			}
+			break;
+		case RIGHT:
+			snake.coor[0].x += snake.speed;
+			if (snake.coor[0].x - 10 >= 640) {	//超出了右面的边界
+				snake.coor[0].x = 0;
+			}
+			break;
+	}	
 }
 //通过按键改变蛇的方向
 void keyControl() {
@@ -87,26 +127,39 @@ void keyControl() {
 		case 'W':
 		case 72:
 			//改变方向
-			snake.dir = UP;
+			if (snake.dir != DOWN) {
+				snake.dir = UP;
+			}
 			break;
 		case 's':
 		case 'S':
 		case 80:
-			snake.dir = DOWN;
+			if (snake.dir != UP) {
+				snake.dir = DOWN;
+			}
 			break;
 		case 'a':
 		case 'A':
 		case 75:
-			snake.dir = LEFT;
+			if (snake.dir != RIGHT) {
+				snake.dir = LEFT;
+			}
 			break;
 		case 'd':
 		case 'D':
 		case 77:
-			snake.dir = RIGHT;
+			if (snake.dir != LEFT) {
+				snake.dir = RIGHT;
+			}
 			break;
 		}
 	}
-	
+}
+void EatFodd() {
+	if (snake.coor[0].x == food.x && snake.coor[0].y == food.y) {
+		food.flag = false;
+		snake.size++;
+	}
 }
 
 int main(){
@@ -114,10 +167,11 @@ int main(){
 	GameDraw();
 	
 	while (1) {
-		GameDraw();
 		snakeMove();
+		GameDraw();
 		keyControl();
-		Sleep(20);
+		EatFodd();
+		Sleep(50);
 	}
 
 	return 0;
